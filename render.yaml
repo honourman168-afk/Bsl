@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: bsl-tournaments-predictor
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: ADMIN_USERNAME
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: DB_PATH
+        value: /data/bsl.db
+    disk:
+      name: bsl-data
+      mountPath: /data
+      sizeGB: 1
