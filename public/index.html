@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BSL Tournaments Predictor</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="ball">⚽</span><div><strong>BSL</strong><small>Tournaments Predictor</small></div></div>
+  <nav>
+    <button data-view="home">Home</button>
+    <button data-view="matches">Matches</button>
+    <button data-view="leaderboard">Leaderboard</button>
+    <button data-view="profile" id="profileNav">Profile</button>
+    <button data-view="admin">Admin</button>
+  </nav>
+</header>
+
+<main>
+<section id="home" class="view active">
+  <div class="hero">
+    <div>
+      <p class="eyebrow">PREDICT • SCORE • RANK</p>
+      <h1>Predict the match.<br><span>Climb the table.</span></h1>
+      <p class="heroText">Make your football predictions, earn points and compete for the top spot. No money. Just football knowledge.</p>
+      <div class="actions"><button class="primary" data-view="matches">Start Predicting</button><button class="secondary" data-view="leaderboard">View Rankings</button></div>
+    </div>
+    <div class="heroCard"><div class="trophy">🏆</div><h3>Correct score bonus</h3><div class="big">+6</div><p>Extra points for an exact score prediction.</p></div>
+  </div>
+  <div class="stats"><div><b id="matchCount">0</b><span>Matches</span></div><div><b>+6</b><span>Exact score bonus</span></div><div><b>100%</b><span>Free to play</span></div></div>
+</section>
+
+<section id="matches" class="view">
+  <div class="sectionHead"><div><p class="eyebrow">UPCOMING FIXTURES</p><h2>Make your predictions</h2></div><button class="secondary" onclick="loadMatches()">↻ Refresh</button></div>
+  <div id="matchesGrid" class="matchGrid"></div>
+</section>
+
+<section id="leaderboard" class="view">
+  <div class="sectionHead"><div><p class="eyebrow">THE RANKINGS</p><h2>Leaderboard</h2></div><button class="secondary" onclick="loadLeaderboard()">↻ Refresh</button></div>
+  <div class="tableWrap"><table><thead><tr><th>Rank</th><th>Player</th><th>Username</th><th>Points</th></tr></thead><tbody id="leaderBody"></tbody></table></div>
+</section>
+
+<section id="profile" class="view">
+  <div class="sectionHead"><div><p class="eyebrow">YOUR ACCOUNT</p><h2 id="profileTitle">Profile</h2></div></div>
+  <div id="profileBox"></div>
+</section>
+
+<section id="admin" class="view">
+  <div id="adminLoginBox" class="panel">
+    <p class="eyebrow">ADMIN AREA</p><h2>Admin login</h2>
+    <form id="adminLogin"><input id="adminUser" placeholder="Username" required><input id="adminPass" type="password" placeholder="Password" required><button class="primary">Login</button></form>
+  </div>
+  <div id="adminPanel" class="hidden">
+    <div class="sectionHead"><div><p class="eyebrow">CONTROL CENTER</p><h2>Manage tournaments</h2></div><button class="secondary" onclick="adminLogout()">Log out</button></div>
+    <div class="adminGrid">
+      <form id="matchForm" class="panel">
+        <h3>Add match</h3>
+        <input id="homeTeam" placeholder="Home team" required><input id="awayTeam" placeholder="Away team" required>
+        <label>Match date/time<input id="matchTime" type="datetime-local" required></label>
+        <label>Prediction deadline<input id="deadline" type="datetime-local" required></label>
+        <div class="three"><label>Home pts<input id="homePoints" type="number" min="0" value="3"></label><label>Draw pts<input id="drawPoints" type="number" min="0" value="4"></label><label>Away pts<input id="awayPoints" type="number" min="0" value="6"></label></div>
+        <p class="hint">Exact score bonus is fixed at +6.</p><button class="primary">Publish match</button>
+      </form>
+      <div class="panel"><h3>Users</h3><div id="adminUsers"></div></div>
+    </div>
+    <div class="panel"><h3>Matches & results</h3><div id="adminMatches"></div></div>
+  </div>
+</section>
+</main>
+
+<div id="toast"></div>
+<div id="authModal" class="modal hidden"><div class="modalBox"><button class="x" onclick="closeAuth()">×</button><div class="tabs"><button onclick="showAuth('login')">Login</button><button onclick="showAuth('register')">Register</button></div><form id="userAuth"></form></div></div>
+<script src="/app.js"></script>
+</body>
+</html>
