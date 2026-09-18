@@ -196,7 +196,7 @@ app.post("/api/login", authLimiter, (req, res) => {
   if (!user || !bcrypt.compareSync(String(password || ""), user.password)) {
     return res.status(401).json({ error: "Invalid username or password." });
   }
-  res.json({ id: user.id, name: user.name, username: user.username, points: user.points
+  res.json({ id: user.id, name: user.name, username: user.username, points: user.points });
 });
 
 app.get("/api/matches", (req, res) => {
@@ -314,3 +314,4 @@ app.post("/api/admin/login", authLimiter, (req,res) => {
 });
 
 app.listen(PORT, () => console.log(`BSL Tournaments Predictor running on port ${PORT}`));
+
