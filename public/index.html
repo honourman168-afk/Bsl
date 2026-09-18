@@ -54,6 +54,11 @@
   </div>
   <div id="adminPanel" class="hidden">
     <div class="sectionHead"><div><p class="eyebrow">CONTROL CENTER</p><h2>Manage tournaments</h2></div><button class="secondary" onclick="adminLogout()">Log out</button></div>
+    <div class="panel" style="margin-bottom:16px">
+      <h3>Match Day</h3>
+      <p>New matches you publish below are added to <b>Match Day <span id="currentMatchdayLabel">1</span></b>. The leaderboard only counts points from the current match day.</p>
+      <button class="primary" onclick="advanceMatchday()">Start New Match Day</button>
+    </div>
     <div class="adminGrid">
       <form id="matchForm" class="panel">
         <h3>Add match</h3>
