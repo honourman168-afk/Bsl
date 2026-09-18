@@ -197,3 +197,120 @@ app.post("/api/login", authLimiter, (req, res) => {
     return res.status(401).json({ error: "Invalid username or password." });
   }
   res.json({ id: user.id, name: user.name, username: user.username, points: user.points
+});
+
+app.get("/api/matches", (req, res) => {
+  const matches = db.prepare("SELECT * FROM matches ORDER BY match_time ASC").all();
+  res.json(matches.map(m => ({...m, canPredict: isBeforeDeadline(m)})));
+});
+
+app.get("/api/leaderboard", (req, res) => {
+  const currentMatchday = getCurrentMatchday();
+  const rows = db.prepare(`
+    SELECT id, name, username, points,
+      RANK() OVER (ORDER BY points DESC, id ASC) AS rank
+    FROM (
+      SELECT u.id AS id, u.name AS name, u.username AS username,
+        COALESCE(SUM(CASE WHEN m.matchday = ? THEN p.points_awarded ELSE 0 END), 0) AS points
+      FROM users u
+      LEFT JOIN predictions p ON p.user_id = u.id
+      LEFT JOIN matches m ON m.id = p.match_id
+      GROUP BY u.id
+    ) sub
+    ORDER BY points DESC, id ASC
+  `).all(currentMatchday);
+  res.json(rows);
+});
+
+app.get("/api/matchday", (req, res) => {
+  res.json({ currentMatchday: getCurrentMatchday() });
+});
+
+app.post("/api/admin/matchday/advance", auth, (req, res) => {
+  const next = getCurrentMatchday() + 1;
+  db.prepare("UPDATE app_state SET current_matchday = ? WHERE id = 1").run(next);
+  res.json({ currentMatchday: next });
+});
+
+app.get("/api/user/:id/predictions", (req, res) => {
+  const userId = Number(req.params.id);
+  if (!Number.isInteger(userId)) return res.status(400).json({ error: "Invalid user id." });
+  const rows = db.prepare(`
+    SELECT p.*, m.home_team,m.away_team,m.match_time,m.deadline,m.status,
+           m.home_score AS result_home_score,m.away_score AS result_away_score
+    FROM predictions p JOIN matches m ON m.id=p.match_id
+    WHERE p.user_id=? ORDER BY m.match_time DESC
+  `).all(userId);
+  res.json(rows);
+});
+
+app.post("/api/predictions", (req, res) => {
+  const { userId, matchId, outcome, homeScore, awayScore } = req.body || {};
+  const user = db.prepare("SELECT id FROM users WHERE id=?").get(userId);
+  const match = db.prepare("SELECT * FROM matches WHERE id=?").get(matchId);
+  if (!user || !match) return res.status(404).json({ error: "User or match not found." });
+  if (!isBeforeDeadline(match)) return res.status(400).json({ error: "The prediction deadline has passed." });
+  if (!["home","draw","away"].includes(outcome)) return res.status(400).json({ error: "Choose a valid outcome." });
+  if (!Number.isInteger(Number(homeScore)) || !Number.isInteger(Number(awayScore)) || Number(homeScore) < 0 || Number(awayScore) < 0) {
+    return res.status(400).json({ error: "Enter valid score numbers." });
+  }
+
+  try {
+    db.prepare(`
+      INSERT INTO predictions (user_id,match_id,outcome,home_score,away_score)
+      VALUES (?,?,?,?,?)
+      ON CONFLICT(user_id,match_id) DO UPDATE SET
+        outcome=excluded.outcome, home_score=excluded.home_score, away_score=excluded.away_score
+    `).run(userId, matchId, outcome, Number(homeScore), Number(awayScore));
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: "Could not save prediction." });
+  }
+});
+
+// Admin endpoints
+app.get("/api/admin/matches", auth, (req,res) => {
+  res.json(db.prepare("SELECT * FROM matches ORDER BY match_time ASC").all());
+});
+
+app.get("/api/admin/users", auth, (req,res) => {
+  res.json(db.prepare("SELECT id,name,username,points,created_at FROM users ORDER BY points DESC").all());
+});
+
+app.post("/api/admin/matches", auth, (req,res) => {
+  const { homeTeam, awayTeam, matchTime, deadline, homePoints, drawPoints, awayPoints } = req.body || {};
+  if (!homeTeam || !awayTeam || !matchTime || !deadline) return res.status(400).json({error:"Complete all match fields."});
+  const matchday = getCurrentMatchday();
+  const info = db.prepare(`
+    INSERT INTO matches(home_team,away_team,match_time,deadline,home_points,draw_points,away_points,matchday)
+    VALUES(?,?,?,?,?,?,?,?)
+  `).run(homeTeam.trim(), awayTeam.trim(), matchTime, deadline, Number(homePoints)||0, Number(drawPoints)||0, Number(awayPoints)||0, matchday);
+  res.json({id:info.lastInsertRowid, matchday});
+});
+
+app.post("/api/admin/matches/:id/result", auth, (req,res) => {
+  const { homeScore, awayScore } = req.body || {};
+  if (!Number.isInteger(Number(homeScore)) || !Number.isInteger(Number(awayScore)) || Number(homeScore)<0 || Number(awayScore)<0)
+    return res.status(400).json({error:"Enter valid final scores."});
+  const match = db.prepare("SELECT * FROM matches WHERE id=?").get(req.params.id);
+  if (!match) return res.status(404).json({error:"Match not found."});
+  if (match.status === "settled") return res.status(400).json({error:"Match is already settled."});
+  db.prepare("UPDATE matches SET home_score=?,away_score=? WHERE id=?").run(Number(homeScore),Number(awayScore),req.params.id);
+  settleMatch(req.params.id);
+  res.json({ok:true});
+});
+
+app.post("/api/admin/matches/:id/close", auth, (req,res) => {
+  const match = db.prepare("SELECT * FROM matches WHERE id=?").get(req.params.id);
+  if (!match) return res.status(404).json({error:"Match not found."});
+  db.prepare("UPDATE matches SET status='closed' WHERE id=?").run(req.params.id);
+  res.json({ok:true});
+});
+
+app.post("/api/admin/login", authLimiter, (req,res) => {
+  const {username,password}=req.body||{};
+  if (username===adminUser && password===adminPass) res.json({token: signAdminToken()});
+  else res.status(401).json({error:"Invalid admin credentials."});
+});
+
+app.listen(PORT, () => console.log(`BSL Tournaments Predictor running on port ${PORT}`));
