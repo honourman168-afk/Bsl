@@ -35,7 +35,7 @@ async function loadMatches(){
 function matchHTML(m){
  const closed=!m.canPredict;
  return `<article class="matchCard" data-match="${m.id}">
-  <div class="matchMeta"><span>${new Date(m.match_time).toLocaleString()}</span><span>${m.status==="settled"?"SETTLED":closed?"CLOSED":"OPEN"}</span></div>
+  <div class="matchMeta"><span>MD${m.matchday} · ${new Date(m.match_time).toLocaleString()}</span><span>${m.status==="settled"?"SETTLED":closed?"CLOSED":"OPEN"}</span></div>
   <div class="teams"><b>${esc(m.home_team)}</b><span class="vs">VS</span><b>${esc(m.away_team)}</b></div>
   ${m.status==="settled"?`<div class="panel" style="padding:12px;text-align:center"><b>Final: ${m.home_score} - ${m.away_score}</b></div>`:
   !currentUser?`<button class="primary saveBtn" onclick="openAuth('login')">Login to predict</button>`:
@@ -61,6 +61,9 @@ async function savePrediction(id){
 }
 async function loadLeaderboard(){
  const rows=await api("/api/leaderboard");
+ const {currentMatchday}=await api("/api/matchday");
+ const heading=document.querySelector("#leaderboard h2");
+ if(heading)heading.textContent=`Leaderboard — Match Day ${currentMatchday}`;
  $("#leaderBody").innerHTML=rows.length?rows.map(r=>`<tr><td class="${r.rank===1?'rank1':''}">#${r.rank}</td><td><b>${esc(r.name)}</b></td><td>${esc(r.username)}</td><td><b>${r.points}</b></td></tr>`).join(""):`<tr><td colspan="4">No players yet.</td></tr>`;
 }
 async function renderProfile(){
@@ -68,7 +71,7 @@ async function renderProfile(){
  if(!currentUser){box.innerHTML='<div class="panel"><h3>You are not logged in.</h3><button class="primary" onclick="openAuth()">Login / Register</button></div>';return}
  const leaders=await api("/api/leaderboard"), me=leaders.find(x=>x.id===currentUser.id);
  const preds=await api(`/api/user/${currentUser.id}/predictions`);
- box.innerHTML=`<div class="panel"><p class="eyebrow">PLAYER</p><h2>${esc(currentUser.name)}</h2><p class="hint">@${esc(currentUser.username)}</p><div class="stats"><div><b>${me?.points||0}</b><span>Total points</span></div><div><b>#${me?.rank||"-"}</b><span>Current rank</span></div><div><b>${preds.length}</b><span>Predictions</span></div></div><button class="secondary" style="margin-top:15px" onclick="logout()">Log out</button></div>
+ box.innerHTML=`<div class="panel"><p class="eyebrow">PLAYER</p><h2>${esc(currentUser.name)}</h2><p class="hint">@${esc(currentUser.username)}</p><div class="stats"><div><b>${me?.points||0}</b><span>This match day</span></div><div><b>#${me?.rank||"-"}</b><span>Current rank</span></div><div><b>${preds.length}</b><span>Predictions</span></div></div><button class="secondary" style="margin-top:15px" onclick="logout()">Log out</button></div>
  <div class="panel" style="margin-top:16px"><h3>Prediction history</h3>${preds.length?preds.map(p=>`<div class="userLine"><b>${esc(p.home_team)} ${p.home_score??"-"} - ${p.away_score??"-"} ${esc(p.away_team)}</b><br><span class="hint">Your pick: ${p.outcome} • ${p.points_awarded} pts • ${p.status}</span></div>`).join(""):"<p class='hint'>No predictions yet.</p>"}</div>`;
 }
 function logout(){currentUser=null;localStorage.removeItem("bslUser");renderProfile();go("home");toast("Logged out")}
@@ -79,7 +82,20 @@ function adminLogout(){adminToken=null;localStorage.removeItem("bslAdminToken");
 async function renderAdmin(){
  if(!adminToken){$("#adminLoginBox").classList.remove("hidden");$("#adminPanel").classList.add("hidden");return}
  $("#adminLoginBox").classList.add("hidden");$("#adminPanel").classList.remove("hidden");
- try{await loadAdminUsers();await loadAdminMatches()}catch(e){adminLogout();toast(e.message)}
+ try{await loadAdminUsers();await loadAdminMatches();await loadMatchdayLabel()}catch(e){adminLogout();toast(e.message)}
+}
+async function loadMatchdayLabel(){
+ const {currentMatchday}=await api("/api/matchday");
+ $("#currentMatchdayLabel").textContent=currentMatchday;
+}
+async function advanceMatchday(){
+ if(!confirm("Start a new match day? The leaderboard will reset to zero for everyone on the new match day. Past match days and results are kept, they just won't count on the leaderboard anymore."))return;
+ try{
+  const d=await adminApi("/api/admin/matchday/advance",{method:"POST"});
+  $("#currentMatchdayLabel").textContent=d.currentMatchday;
+  toast(`Now on Match Day ${d.currentMatchday}`);
+  loadLeaderboard();
+ }catch(e){toast(e.message)}
 }
 async function adminApi(url,opts={}){return api(url,{...opts,headers:{Authorization:`Bearer ${adminToken}`,...(opts.headers||{})}})}
 async function loadAdminUsers(){const rows=await adminApi("/api/admin/users");$("#adminUsers").innerHTML=rows.length?rows.map(u=>`<div class="userLine"><b>${esc(u.name)}</b> <span class="hint">@${esc(u.username)}</span><br><b>${u.points} pts</b></div>`).join(""):"<p class='hint'>No registered users.</p>"}
