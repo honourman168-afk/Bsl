@@ -4,7 +4,7 @@ let adminToken = localStorage.getItem("bslAdminToken") || null;
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 function toast(msg){const t=$("#toast");t.textContent=msg;t.style.display="block";setTimeout(()=>t.style.display="none",2500)}
-function api(url,opts={}){return fetch(url,{headers:{"Content-Type":"application/json",...(opts.headers||{})},...opts}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.error||"Something went wrong");return d})}
+function api(url,opts={}){const{headers,...rest}=opts;return fetch(url,{headers:{"Content-Type":"application/json",...(headers||{})},...rest}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.error||"Something went wrong");return d})}
 
 function go(view){$$(".view").forEach(v=>v.classList.remove("active"));$("#"+view).classList.add("active");if(view==="matches")loadMatches();if(view==="leaderboard")loadLeaderboard();if(view==="profile")renderProfile();if(view==="admin")renderAdmin()}
 $$("[data-view]").forEach(b=>b.addEventListener("click",()=>go(b.dataset.view)));
